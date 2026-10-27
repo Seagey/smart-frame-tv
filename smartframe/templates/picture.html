@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smart Frame TV picture</title>
+<!-- One template, four styles. smartframe/render.py fills in the fonts, the photo and the day's
+     details, then headless Chrome takes a 3840x2160 screenshot (1920x1080 at 2x). Nothing here
+     loads from the internet. -->
+<style>
+/*FONTS*/
+:root {
+  --mat: #f4f2ee; --mat-ink: #2c2a27; --mat-ink-2: #75706a; --rule: #cbc4ba;
+  --paper: #f3efe6; --paper-ink: #2f2a24; --paper-ink-2: #7a7166; --paper-rule: #d6cdbf;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+.stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.serif { font-family: "Cormorant Garamond", Georgia, serif; }
+.sans { font-family: "Jost", "Helvetica Neue", Arial, sans-serif; }
+.dots { display: inline-flex; gap: 6px; margin-right: 10px; vertical-align: middle; }
+.dot { width: .8em; height: .8em; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); display: inline-block; }
+
+/* ---------------- Gallery: the photo in a mat, a museum label underneath ---------------- */
+.gallery { background: var(--mat); }
+.gallery .photo { inset: auto; left: 150px; top: 72px; width: 1620px; height: 911px;
+  box-shadow: 0 2px 0 rgba(0,0,0,.04), 0 18px 40px rgba(0,0,0,.10); }
+.gallery .words { position: absolute; left: 150px; right: 150px; top: 1004px; height: 40px; display: flex;
+  align-items: baseline; color: var(--mat-ink); white-space: nowrap; }
+.gallery.right .words { justify-content: flex-end; }
+.gallery .date { font-size: 34px; font-weight: 600; flex: none; }
+.gallery .item { font-size: 21px; letter-spacing: .03em; color: var(--mat-ink-2); flex: none; }
+.gallery .item.events { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gallery .item + .item::before, .gallery .date + .item::before { content: ""; display: inline-block; width: 1px; height: 22px;
+  background: var(--rule); margin: 0 22px; vertical-align: -4px; }
+.gallery .ev + .ev::before { content: "\00b7"; margin: 0 12px; }
+.gallery .ev b { font-weight: 500; color: var(--mat-ink); margin-right: 8px; }
+.gallery .item.end { margin-left: auto; color: var(--mat-ink); }
+.gallery.right .item.end, .gallery .item.end ~ .item.end { margin-left: 0; }
+.gallery .quote { font-family: "Cormorant Garamond", Georgia, serif; font-style: italic; font-size: 26px; letter-spacing: 0; }
+
+/* ---------------- Sky: the photo full screen, the words set quietly in the sky ---------------- */
+.sky .words { position: absolute; max-width: 1100px; }
+.sky.tl .words { left: 92px; top: 74px; } .sky.tr .words { right: 92px; top: 74px; text-align: right; }
+.sky.bl .words { left: 92px; bottom: 80px; } .sky.br .words { right: 92px; bottom: 80px; text-align: right; }
+.sky .date { font-size: 64px; font-weight: 600; line-height: 1; letter-spacing: .005em; }
+.sky .wx { margin-top: 12px; font-size: 26px; font-weight: 500; letter-spacing: .02em; opacity: .78; }
+.sky .events { margin-top: 26px; display: grid; gap: 8px; }
+.sky .ev { font-size: 30px; font-weight: 500; }
+.sky .ev b { font-style: italic; font-weight: 500; opacity: .75; margin-right: 10px; }
+.sky .rem { margin-top: 20px; font-size: 26px; font-weight: 500; letter-spacing: .02em; }
+.sky .quote { margin-top: 22px; font-size: 32px; font-style: italic; font-weight: 500; max-width: 900px; line-height: 1.2; }
+.sky .date + .events, .sky .date + .rem, .sky .date + .quote { margin-top: 22px; }
+.ink-dark .words { color: #22323a; text-shadow: 0 0 18px rgba(236,242,244,.9), 0 0 4px rgba(236,242,244,.7); }
+.ink-light .words { color: #fbfaf7; text-shadow: 0 0 22px rgba(10,16,24,.55), 0 1px 3px rgba(10,16,24,.5); }
+
+/* ---------------- Minimal: small, quiet type in one corner ---------------- */
+.minimal .words { position: absolute; max-width: 760px; font-family: "Jost", "Helvetica Neue", Arial, sans-serif; }
+.minimal.tl .words { left: 72px; top: 64px; } .minimal.tr .words { right: 72px; top: 64px; text-align: right; }
+.minimal.bl .words { left: 72px; bottom: 64px; } .minimal.br .words { right: 72px; bottom: 64px; text-align: right; }
+.minimal .date { font-size: 19px; font-weight: 500; letter-spacing: .22em; text-transform: uppercase; }
+.minimal .rule { width: 36px; height: 1.5px; margin: 16px 0 14px; background: currentColor; opacity: .7; }
+.minimal.tr .rule, .minimal.br .rule { margin-left: auto; }
+.minimal .line { font-size: 20px; font-weight: 400; letter-spacing: .04em; line-height: 1.65; }
+.minimal .line b { font-weight: 500; margin-right: 8px; }
+.minimal .quote { font-family: "Cormorant Garamond", Georgia, serif; font-style: italic; font-size: 25px; letter-spacing: 0; margin-top: 6px; }
+.minimal.ink-dark .words { color: #1f262b; text-shadow: 0 0 14px rgba(240,243,245,.85); }
+.minimal.ink-light .words { color: #fbfaf7; text-shadow: 0 0 16px rgba(8,12,18,.6), 0 1px 2px rgba(8,12,18,.45); }
+
+/* ---------------- Postcard: the photo with a white border, a written side next to it ---------------- */
+.postcard { background: var(--paper); }
+.postcard .photo { inset: auto; top: 64px; width: 1150px; height: 952px; border: 22px solid #fbf9f4;
+  box-shadow: 0 1px 0 rgba(0,0,0,.05), 0 14px 34px rgba(60,40,20,.12); }
+.postcard.right .photo { left: 64px; } .postcard.left .photo { right: 64px; }
+.postcard .words { position: absolute; top: 96px; bottom: 96px; width: 560px; color: var(--paper-ink); display: flex; flex-direction: column; }
+.postcard.right .words { left: 1284px; } .postcard.left .words { left: 76px; }
+.postcard .stamp { align-self: flex-end; width: 150px; height: 178px; padding: 9px; background:
+  radial-gradient(circle at 7px 7px, var(--paper) 4.2px, transparent 4.8px) -7px -7px / 14px 14px, #fbf9f4;
+  box-shadow: 0 1px 3px rgba(60,40,20,.15); }
+.postcard .stamp-in { width: 100%; height: 100%; border: 1.5px solid #b9ab96; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center; color: #8a4b2f; background: #fbf9f4; }
+.postcard .deg { font-family: "Jost", sans-serif; font-weight: 400; font-size: .42em; vertical-align: .95em; margin-left: 1px; }
+.postcard .stamp-t { font-family: "Cormorant Garamond", Georgia, serif; font-size: 62px; font-weight: 600; line-height: 1; font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.postcard .stamp-w { font-family: "Jost", sans-serif; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; margin-top: 8px; line-height: 1.3; padding: 0 6px; }
+.postcard .stamp-l { font-family: "Jost", sans-serif; font-size: 13px; letter-spacing: .08em; margin-top: 4px; opacity: .8; }
+.postcard .date { font-size: 58px; font-weight: 600; line-height: 1.05; margin-top: 34px; }
+.postcard .lines { margin-top: 30px; }
+.postcard .line { font-family: "Jost", sans-serif; font-size: 22px; letter-spacing: .02em; color: var(--paper-ink);
+  height: 58px; line-height: 58px; border-bottom: 1.5px solid var(--paper-rule); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.postcard .line b { font-weight: 500; color: var(--paper-ink-2); margin-right: 10px; }
+.postcard .quote { margin-top: auto; font-size: 36px; font-style: italic; font-weight: 500; line-height: 1.2; color: var(--paper-ink); }
+.postcard .nostamp + .date { margin-top: 0; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <img class="photo" id="photo" src="photo.jpg" alt="">
+  <div class="words" id="words"></div>
+</div>
+<script>
+var DATA = /*DATA*/{};
+(function () {
+  var S = DATA.style, pos = DATA.position, side = /right$/.test(pos) ? "right" : "left";
+  var corner = { "top-left": "tl", "top-right": "tr", "bottom-left": "bl", "bottom-right": "br" }[pos];
+  var stage = document.getElementById("stage"), W = document.getElementById("words");
+  stage.className = "stage " + S + " " + corner + " " + side + " ink-" + DATA.ink;
+  if (DATA.mat) document.documentElement.style.setProperty("--mat", DATA.mat);
+  document.getElementById("photo").style.objectPosition = DATA.focus || "50% 50%";
+  var I = DATA.info, on = {}; I.blocks.forEach(function (b) { on[b] = true; });
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function ev(e, cls) { var d = el("div", cls); if (e.when) d.appendChild(el("b", null, e.when)); d.appendChild(document.createTextNode(e.title)); return d; }
+  function dots(list) { var s = el("span", "dots"); list.forEach(function (c) { var d = el("span", "dot"); d.style.background = c; s.appendChild(d); }); return s; }
+  function reminder(r, cls) { var d = el("div", cls); if (r.dots && r.dots.length) d.appendChild(dots(r.dots)); d.appendChild(document.createTextNode(r.text)); return d; }
+  function events() { return I.events.length ? I.events : (I.empty_text ? [{ when: "", title: I.empty_text }] : []); }
+
+  if (S === "gallery") {
+    var ends = [];
+    I.blocks.forEach(function (b) {
+      if (b === "date" && I.date) W.appendChild(el("span", "date serif", I.date));
+      if (b === "weather" && I.weather) W.appendChild(el("span", "item sans", I.weather));
+      if (b === "calendar" && events().length) {
+        var s = el("span", "item events sans");
+        events().forEach(function (e) { var x = ev(e, "ev"); var sp = el("span", "ev"); sp.innerHTML = x.innerHTML; s.appendChild(sp); });
+        W.appendChild(s);
+      }
+      if (b === "reminders") I.reminders.forEach(function (r) { var x = reminder(r, ""); var sp = el("span", "item end sans"); sp.innerHTML = x.innerHTML; ends.push(sp); });
+      if (b === "quote" && I.quote) ends.push(el("span", "item end quote", I.quote));
+    });
+    ends.forEach(function (e) { W.appendChild(e); });
+  } else if (S === "sky") {
+    I.blocks.forEach(function (b) {
+      if (b === "date" && I.date) W.appendChild(el("div", "date serif", I.date));
+      if (b === "weather" && I.weather) W.appendChild(el("div", "wx sans", I.weather));
+      if (b === "calendar" && events().length) { var g = el("div", "events serif"); events().forEach(function (e) { g.appendChild(ev(e, "ev")); }); W.appendChild(g); }
+      if (b === "reminders") I.reminders.forEach(function (r) { W.appendChild(reminder(r, "rem sans")); });
+      if (b === "quote" && I.quote) W.appendChild(el("div", "quote serif", I.quote));
+    });
+  } else if (S === "minimal") {
+    var first = true;
+    I.blocks.forEach(function (b) {
+      if (b === "date" && I.date) { W.appendChild(el("div", "date", I.date)); W.appendChild(el("div", "rule")); return; }
+      if (b === "weather" && I.weather) W.appendChild(el("div", "line", I.weather));
+      if (b === "calendar") events().forEach(function (e) { W.appendChild(ev(e, "line")); });
+      if (b === "reminders") I.reminders.forEach(function (r) { W.appendChild(reminder(r, "line")); });
+      if (b === "quote" && I.quote) W.appendChild(el("div", "line quote", I.quote));
+    });
+  } else {
+    if (on.weather && DATA.info.wx) {
+      var st = el("div", "stamp"), si = el("div", "stamp-in");
+      var unit = DATA.info.wx.unit || "°", t = el("div", "stamp-t", String(DATA.info.wx.high));
+      t.appendChild(el("span", "deg", unit)); si.appendChild(t);
+      si.appendChild(el("div", "stamp-w", DATA.info.wx.text));
+      si.appendChild(el("div", "stamp-l", "low " + DATA.info.wx.low + unit));
+      st.appendChild(si); W.appendChild(st);
+    } else { W.appendChild(el("div", "nostamp")); }
+    if (on.date && I.date) W.appendChild(el("div", "date serif", I.date));
+    var L = el("div", "lines");
+    I.blocks.forEach(function (b) {
+      if (b === "calendar") events().forEach(function (e) { L.appendChild(ev(e, "line")); });
+      if (b === "reminders") I.reminders.forEach(function (r) { L.appendChild(reminder(r, "line")); });
+      if (b === "weather" && I.weather && !DATA.info.wx) L.appendChild(el("div", "line", I.weather));
+    });
+    W.appendChild(L);
+    if (on.quote && I.quote) W.appendChild(el("div", "quote serif", I.quote));
+  }
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(function () {
+    // Gallery label is one line: drop whole events from the end rather than cut a word in half.
+    var evs = W.querySelector(".events");
+    while (evs && evs.children.length > 1 && evs.scrollWidth > evs.clientWidth + 1) evs.removeChild(evs.lastChild);
+    document.body.dataset.ready = "1";
+  });
+})();
+</script>
+</body>
+</html>

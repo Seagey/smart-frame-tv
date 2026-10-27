@@ -1,0 +1,11 @@
+# gitleaks settings for scripts/privacy-scan.sh. The default rules, minus the folders git ignores
+# that hold the tool's own local files (the TV token lives in data/, and never in git).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "local, git-ignored folders"
+paths = [
+  '''(^|/)data/''',
+  '''(^|/)\.venv/''',
+]

@@ -1,0 +1,18 @@
+# Your own settings and everything the tool keeps for itself: never commit these.
+/config.json
+/data/
+/photos/
+*.token
+token.txt
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+
+# Editors and the Mac
+.DS_Store
+.vscode/
+.idea/

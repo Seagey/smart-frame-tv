@@ -1,0 +1,8 @@
+# The Samsung library is pinned to the exact version this was tested with on a Frame.
+# (The release on PyPI under the same name is a different branch without the Art Mode code.)
+samsungtvws @ https://github.com/NickWaterton/samsung-tv-ws-api/archive/fe95ef1d784cd32f49bf9a07ec479576574eea07.zip
+Pillow>=10.0
+icalendar>=5.0
+recurring-ical-events>=2.1
+# Optional: iPhone photos (.heic). Remove this line if it will not install on your computer.
+pillow-heif>=0.16

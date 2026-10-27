@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-frame-tv"
+version = "0.1.0"
+description = "A fresh Art Mode picture every day for a Samsung The Frame: your photo, the date, the weather and your calendar."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+  "samsungtvws @ https://github.com/NickWaterton/samsung-tv-ws-api/archive/fe95ef1d784cd32f49bf9a07ec479576574eea07.zip",
+  "Pillow>=10.0",
+  "icalendar>=5.0",
+  "recurring-ical-events>=2.1",
+]
+
+[project.optional-dependencies]
+heic = ["pillow-heif>=0.16"]
+
+[project.scripts]
+smartframe = "smartframe.cli:main"
+
+[tool.setuptools]
+packages = ["smartframe"]
+
+[tool.setuptools.package-data]
+smartframe = ["templates/*.html", "fonts/*.ttf", "fonts/*.txt"]

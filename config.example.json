@@ -1,0 +1,42 @@
+{
+  "_comment": "Copy this file to config.json and change it. Every setting is explained in docs/CONFIG.md.",
+
+  "frame": {"ip": "192.0.2.10", "name": "SmartFrame"},
+  "timezone": "Australia/Melbourne",
+
+  "photos": {"folder": "photos", "pick": "day", "focus": "centre"},
+
+  "style": "gallery",
+  "position": "bottom-left",
+
+  "blocks": [
+    {"type": "date"},
+    {"type": "weather"},
+    {"type": "calendar"},
+    {"type": "reminders"},
+    {"type": "quote", "on": false}
+  ],
+
+  "place": {"name": "Melbourne", "country": "AU"},
+  "weather": {"units": "celsius", "show_place": false, "rain_chance": false},
+
+  "calendar": {
+    "ics_urls": [],
+    "days": 2,
+    "max": 3,
+    "hide": [],
+    "empty_text": "Nothing planned today"
+  },
+
+  "reminders": [
+    {"text": "Bins out tonight", "days": ["mon"], "dots": ["#b8483c", "#4b8b4f"]}
+  ],
+
+  "quote": {"text": "", "lines": []},
+
+  "date_order": "day-month",
+  "clock": "12h",
+
+  "schedule": {"start_hour": 5, "every_hours": 0},
+  "keep_previous": 0
+}
