@@ -13,13 +13,16 @@ from websockets.asyncio.server import serve
 
 
 class FakeFrame:
-    def __init__(self, photos=None, refuse=False, silent_upload=False, token="faketoken123"):
+    def __init__(self, photos=None, refuse=False, silent_upload=False, token="faketoken123", stuck_in_art=False):
         # photos: [{"content_id": ..., "image_date": ...}] that "the owner" put there
         self.items = [dict(p, category_id="MY-C0002", width=3840, height=2160) for p in (photos or [])]
         self.current = self.items[0]["content_id"] if self.items else None
         self.refuse, self.silent_upload, self.token = refuse, silent_upload, token
         self.next_number = 1 + max([int(p["content_id"].split("_F")[1]) for p in self.items] or [0])
         self.uploads, self.selects, self.deletes = [], [], []
+        # stuck_in_art: like a real 2021 Frame after its shown picture was deleted, ignore selects
+        # while Art Mode is on (self.art), take them while it shows TV.
+        self.stuck_in_art, self.art = stuck_in_art, "on"
         self.port = None
         self.loop = None
         self._ready = threading.Event()
@@ -76,7 +79,7 @@ class FakeFrame:
             d = json.loads(msg["params"]["data"])
             req, rid = d["request"], d.get("request_id") or d.get("id")
             if req == "get_artmode_status":
-                await self._send(ws, {"id": rid, "event": "artmode_status", "value": "on"})
+                await self._send(ws, {"id": rid, "event": "artmode_status", "value": self.art})
             elif req in ("get_api_version", "api_version"):
                 await self._send(ws, {"id": rid, "version": "2.03"})
             elif req == "get_content_list":
@@ -88,7 +91,8 @@ class FakeFrame:
                 await self._send(ws, {"event": "ready_to_use", "request_id": rid, "id": rid,
                                       "conn_info": json.dumps({"ip": "127.0.0.1", "port": self.tcp_port, "key": "k1"})})
             elif req == "select_image":
-                self.current = d["content_id"]
+                if not (self.stuck_in_art and self.art == "on"):
+                    self.current = d["content_id"]
                 self.selects.append(d["content_id"])
                 await self._send(ws, {"id": rid, "event": "select_image"})
             elif req == "delete_image_list":

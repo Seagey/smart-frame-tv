@@ -368,6 +368,8 @@ could now belong to one of your photos, so that one is left alone.
 | `weather: not available` | No internet, or the place was not found. Try a bigger nearby town, add `place.country`, or set `place.latitude` and `place.longitude`. The picture is made without the weather. |
 | `calendar: not available` | Check the link opens in a browser and downloads a `.ics` file. iCloud links must be a Public Calendar. |
 | `render: Chrome did not work, making the plain version instead` | Chrome or Chromium is missing or failed. The TV still gets a simpler picture. Install Chrome (Mac) or `sudo apt install chromium`, or point `"chrome"` in `config.json` at it. |
+| `The Frame kept another picture for now` | Some Frames ignore a new picture while they are in Art Mode (seen on a 2021 Frame after a picture on screen was deleted). The picture is on the TV; the schedule shows it as soon as the TV is switched on to TV once, which is when the Frame takes it. Or pick it yourself: Art Mode, My Photos. |
+| After `undo`, the Frame shows one of Samsung's artworks, not your photo | Undo asks the TV to show the picture you had before, then removes its own. If the TV picks a Samsung artwork anyway, choose your photo with the remote: Art Mode, My Photos. |
 | The words are hard to read on a photo | Move them with `position`, set `ink`, or use the `gallery` or `postcard` style. |
 | Everything else | `smartframe check` and `scripts/schedule.sh status`, then the log in `data/smartframe.log` (Mac and cron) or `journalctl --user -u smart-frame-tv` (Linux). |
 

@@ -158,10 +158,16 @@ def due(cfg, state, now):
 async def _send(cfg, state, path):
     from .frame import Frame
     async with Frame(cfg) as tv:
+        if not state.data.get("before"):
+            # Remember the owner's picture once, so undo can put it back.
+            cur = await tv.current() or {}
+            if cur.get("content_id") and cur["content_id"] not in {u["id"] for u in state.uploaded}:
+                state.data["before"] = {"id": cur["content_id"], "category": cur.get("category_id") or ""}
         cid, stamp = await tv.upload(path)
         state.add_upload(cid, stamp)
         state.save()   # recorded before anything else, so it can always be tidied later
-        await tv.select(cid)
+        shown = await tv.make_current(cid)
+        state.data["shown"] = shown
         keep = max(0, int(cfg.get("keep_previous", 0)))
         older = [u for u in state.uploaded if u["id"] != cid]
         older = older[: max(0, len(older) - keep)]
@@ -170,7 +176,13 @@ async def _send(cfg, state, path):
             state.forget(x)
         if skipped:
             say("left alone %s: the TV now describes it differently, so it may not be ours any more" % ", ".join(skipped))
-        return cid, deleted
+        return cid, deleted, shown
+
+
+async def _show_again(cfg, state):
+    from .frame import Frame
+    async with Frame(cfg) as tv:
+        return await tv.make_current(state.data["current"])
 
 
 def cmd_run(args):
@@ -178,6 +190,17 @@ def cmd_run(args):
     cfg = _load(args)
     state = State(cfg.file("state.json"))
     now = cfg.now()
+    if args.when_due and state.data.get("shown") is False and state.data.get("current") \
+            and reachable(cfg["frame"]["ip"], int(cfg["frame"].get("port", 8002))):
+        # Today's picture is on the TV but the Frame kept another one: try again (it works while
+        # the TV shows TV), then carry on as usual.
+        try:
+            if asyncio.run(_show_again(cfg, state)):
+                state.data["shown"] = True
+                state.save()
+                say("today's picture %s is now the Art Mode picture" % state.data["current"])
+        except Exception:
+            pass
     if args.when_due and not due(cfg, state, now):
         return 0   # not time yet: stay quiet, the next run checks again
     if not reachable(cfg["frame"]["ip"], int(cfg["frame"].get("port", 8002))):
@@ -190,7 +213,7 @@ def cmd_run(args):
         details = info.gather(cfg, now)
         out = cfg.file("today.jpg")
         engine = render.render(cfg, os.path.join(cfg.photo_folder, name), details, out)
-        cid, deleted = asyncio.run(_send(cfg, state, out))
+        cid, deleted, shown = asyncio.run(_send(cfg, state, out))
     except (FrameAsleep,) as e:
         if args.when_due:
             return 0
@@ -202,7 +225,8 @@ def cmd_run(args):
     state.data["last_photo"] = name
     state.mark_run(now.date().isoformat())
     state.save()
-    say("showing %s (%s, %s, made with %s), removed %s" % (cid, cfg["style"], name, engine, ", ".join(deleted) or "nothing"))
+    say("showing %s (%s, %s, made with %s), removed %s%s" % (cid, cfg["style"], name, engine, ", ".join(deleted) or "nothing",
+        "" if shown else ". The Frame kept another picture for now: the schedule tries again while the TV shows TV"))
     return 0
 
 
@@ -211,7 +235,16 @@ def cmd_run(args):
 async def _undo(cfg, state):
     from .frame import Frame
     async with Frame(cfg) as tv:
-        return await tv.delete_ours(list(state.uploaded))
+        # Put the owner's picture back FIRST. A real 2021 Frame whose showing picture was deleted
+        # fell back to a Samsung artwork and then ignored every request to show a photo.
+        before, put_back = state.data.get("before") or {}, None
+        if before.get("id") and before["id"] not in {u["id"] for u in state.uploaded}:
+            try:
+                await tv.select(before["id"], category=before.get("category") or None)
+                put_back = before["id"]
+            except Exception:
+                pass
+        return (await tv.delete_ours(list(state.uploaded))) + (put_back,)
 
 
 def cmd_undo(args):
@@ -227,16 +260,21 @@ def cmd_undo(args):
             print("Nothing changed.")
             return 1
     try:
-        deleted, gone, skipped = asyncio.run(_undo(cfg, state))
+        deleted, gone, skipped, put_back = asyncio.run(_undo(cfg, state))
     except FrameError as e:
         print(e)
         return 1
     for x in deleted + gone + skipped:
         state.forget(x)
     state.data["last_date"] = ""
+    state.data["before"] = None
     state.save()
     print("Removed %d. %s%s" % (len(deleted), "%d were already gone. " % len(gone) if gone else "",
                                  "Left %d alone (they no longer look like ours)." % len(skipped) if skipped else ""))
+    if put_back:
+        print("Asked the Frame to show your picture from before (%s) again." % put_back)
+    print("If the Frame shows one of Samsung's artworks instead, pick your photo with the remote: "
+          "Art Mode, My Photos.")
     print("To stop new pictures, turn off the schedule too (README, \"Undo\").")
     return 0
 

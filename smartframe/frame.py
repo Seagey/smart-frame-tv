@@ -130,23 +130,28 @@ class Frame:
         except Exception:
             return {}
 
+    async def _ask(self, call, tries=3):
+        # Just after it wakes, a 2021 Frame can let the first few requests time out (seen on a real
+        # one: three "unknown"s, then every answer on the next try), so ask again before giving up.
+        for attempt in range(tries):
+            try:
+                answer = await call()
+                if answer is not None:
+                    return answer
+            except Exception:
+                pass
+            if attempt < tries - 1:
+                await asyncio.sleep(1)
+        return None
+
     async def api_version(self):
-        try:
-            return await self.tv.get_api_version()
-        except Exception:
-            return None
+        return await self._ask(self.tv.get_api_version)
 
     async def art_mode(self):
-        try:
-            return await self.tv.get_artmode()
-        except Exception:
-            return None
+        return await self._ask(self.tv.get_artmode)
 
     async def current(self):
-        try:
-            return await self.tv.get_current()
-        except Exception:
-            return None
+        return await self._ask(self.tv.get_current)
 
     async def my_photos(self):
         """Everything in the TV's My Photos, as the TV describes it. Raises FrameError if it will not say."""
@@ -213,9 +218,24 @@ class Frame:
                 return ours[-1]["content_id"], stamp
         raise FrameError("the picture was sent but the Frame never listed it")
 
-    async def select(self, content_id):
+    async def select(self, content_id, category=MY_PHOTOS):
         # Without the category some Frames quietly ignore the request.
-        await self.tv.select_image(content_id, category=MY_PHOTOS, show=True)
+        await self.tv.select_image(content_id, category=category, show=True)
+
+    async def make_current(self, content_id, category=MY_PHOTOS):
+        """Select a picture and confirm the Frame took it. A real 2021 Frame that had fallen back to
+        a Samsung artwork ignored every select while in Art Mode, but took one at once while it was
+        showing TV. True when the picture is the Art Mode picture."""
+        await self.select(content_id, category)
+        for _ in range(4):
+            await asyncio.sleep(1)
+            if ((await self.current()) or {}).get("content_id") == content_id:
+                return True
+        if await self.art_mode() == "off":
+            await self.tv.select_image(content_id, category=category, show=False)
+            await asyncio.sleep(2)
+            return ((await self.current()) or {}).get("content_id") == content_id
+        return False
 
     async def delete_ours(self, records):
         """Delete pictures this tool uploaded. records: [{"id", "image_date"}].

@@ -80,6 +80,33 @@ class FrameTests(unittest.TestCase):
         self.assertEqual(fake.ids(), ["MY_F0001", "MY_F0002"])
         self.assertEqual(self.state().uploaded, [])
 
+    def test_a_frame_that_ignores_the_picture_gets_it_once_it_shows_tv(self):
+        fake = self.start(stuck_in_art=True)   # in Art Mode, ignoring selects, like the real 2021 Frame
+        cfg = self.config()
+        code, out = self.cli("--config", cfg, "run")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(fake.current, "MY_F0001")              # it kept the owner's picture
+        self.assertIs(self.state().data["shown"], False)
+        self.assertIn("tries again", out)
+        fake.art = "off"                                         # someone switched the TV on
+        code, out = self.cli("--config", cfg, "run", "--when-due")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(fake.current, "MY_F0003")
+        self.assertIs(self.state().data["shown"], True)
+        self.assertEqual(fake.uploads, ["MY_F0003"])             # no second upload, just the select
+
+    def test_undo_puts_the_owners_picture_back_before_deleting(self):
+        fake = self.start()   # the owner's MY_F0001 is showing
+        cfg = self.config()
+        for _ in range(2):
+            self.cli("--config", cfg, "run")
+        self.assertEqual(self.state().data["before"]["id"], "MY_F0001")   # remembered once, not overwritten
+        code, out = self.cli("--config", cfg, "undo", "--yes")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(fake.current, "MY_F0001")
+        self.assertIn("MY_F0001", out)
+        self.assertIsNone(self.state().data["before"])
+
     def test_upload_that_never_says_image_added_is_found_not_resent(self):
         fake = self.start(silent_upload=True)
         cfg = self.config()
